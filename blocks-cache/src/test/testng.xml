@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd">
+<suite name="blocks-cache">
+  <test name="blocks-redis">
+    <classes>
+      <class name="com.blocks.cache.redis.impl.TestNGJedisClientImplTest"/>
+    </classes>
+  </test> <!-- blocks-parent -->
+</suite> <!-- Default Suite -->

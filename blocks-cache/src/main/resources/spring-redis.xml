@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	   xmlns:jee="http://www.springframework.org/schema/jee"
+	   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:context="http://www.springframework.org/schema/context"
+	   xmlns:aop="http://www.springframework.org/schema/aop" xmlns:tx="http://www.springframework.org/schema/tx"
+	   xsi:schemaLocation="
+	http://www.springframework.org/schema/beans 
+    http://www.springframework.org/schema/beans/spring-beans.xsd 
+    http://www.springframework.org/schema/jee
+	http://www.springframework.org/schema/jee/spring-jee.xsd
+    http://www.springframework.org/schema/context 
+    http://www.springframework.org/schema/context/spring-context.xsd 
+    http://www.springframework.org/schema/aop 
+    http://www.springframework.org/schema/aop/spring-aop.xsd 
+    http://www.springframework.org/schema/tx 
+    http://www.springframework.org/schema/tx/spring-tx.xsd">
+
+	<context:property-placeholder location="classpath:redis.properties" />
+	<!-- 连接单机redis配置 [[-->
+	<bean id="jedisPoolConfig" class="redis.clients.jedis.JedisPoolConfig">
+		<property name="maxTotal" value="${redis.maxTotal}"/>
+		<property name="maxIdle" value="${redis.maxIdle}"/>
+		<property name="maxWaitMillis" value="${redis.maxWaitMillis}"/>
+		<property name="testOnBorrow" value="${redis.testOnBorrow}"/>
+		<property name="testOnReturn" value="${redis.testOnReturn}"/>
+	</bean>
+
+	<bean id="jedisPool" class="redis.clients.jedis.JedisPool">
+		<constructor-arg name="poolConfig" ref="jedisPoolConfig"/>
+		<constructor-arg name="host" value="${redis.host}" />
+		<constructor-arg name="port" value="${redis.port}" />
+	</bean>
+	<!-- 连接单机redis配置 ]]-->
+
+	<bean id="redisClient" class="com.blocks.cache.redis.impl.JedisClientImpl">
+		<constructor-arg name="jedisPool" ref="jedisPool"/>
+	</bean>
+
+</beans>
