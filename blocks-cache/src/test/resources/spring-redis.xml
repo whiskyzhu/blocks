@@ -1,22 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <beans xmlns="http://www.springframework.org/schema/beans"
-	xmlns:jee="http://www.springframework.org/schema/jee"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:context="http://www.springframework.org/schema/context"
-	xmlns:aop="http://www.springframework.org/schema/aop" xmlns:tx="http://www.springframework.org/schema/tx"
-	xsi:schemaLocation="
-	http://www.springframework.org/schema/beans 
-    http://www.springframework.org/schema/beans/spring-beans.xsd 
+	   xmlns:jee="http://www.springframework.org/schema/jee"
+	   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:context="http://www.springframework.org/schema/context"
+	   xmlns:aop="http://www.springframework.org/schema/aop" xmlns:tx="http://www.springframework.org/schema/tx"
+	   xsi:schemaLocation="
+	http://www.springframework.org/schema/beans
+    http://www.springframework.org/schema/beans/spring-beans.xsd
     http://www.springframework.org/schema/jee
 	http://www.springframework.org/schema/jee/spring-jee.xsd
-    http://www.springframework.org/schema/context 
-    http://www.springframework.org/schema/context/spring-context.xsd 
-    http://www.springframework.org/schema/aop 
-    http://www.springframework.org/schema/aop/spring-aop.xsd 
-    http://www.springframework.org/schema/tx 
+    http://www.springframework.org/schema/context
+    http://www.springframework.org/schema/context/spring-context.xsd
+    http://www.springframework.org/schema/aop
+    http://www.springframework.org/schema/aop/spring-aop.xsd
+    http://www.springframework.org/schema/tx
     http://www.springframework.org/schema/tx/spring-tx.xsd">
 
 	<context:property-placeholder location="classpath:redis.properties" />
-	<!-- 连接单机redis配置 [[-->
+
 	<bean id="jedisPoolConfig" class="redis.clients.jedis.JedisPoolConfig">
 		<property name="maxTotal" value="${redis.maxTotal}"/>
 		<property name="maxIdle" value="${redis.maxIdle}"/>
@@ -24,16 +24,60 @@
 		<property name="testOnBorrow" value="${redis.testOnBorrow}"/>
 		<property name="testOnReturn" value="${redis.testOnReturn}"/>
 	</bean>
-
+	<!-- 1.连接单机redis配置 [[-->
 	<bean id="jedisPool" class="redis.clients.jedis.JedisPool">
 		<constructor-arg name="poolConfig" ref="jedisPoolConfig"/>
 		<constructor-arg name="host" value="${redis.host}" />
 		<constructor-arg name="port" value="${redis.port}" />
 	</bean>
-	<!-- 连接单机redis配置 ]]-->
-
 	<bean id="redisClient" class="com.blocks.cache.redis.impl.JedisClientImpl">
 		<constructor-arg name="jedisPool" ref="jedisPool"/>
 	</bean>
+	<!-- 1.连接单机redis配置 ]]-->
+
+	<!-- 2.连接分布式集群redis配置 [[-->
+	<bean id="redis1" class="redis.clients.jedis.JedisShardInfo">
+		<constructor-arg name="host" value="${redis.host}"/>
+		<constructor-arg name="port" value="${redis.port}"/>
+	</bean>
+	<!--<bean id="redis2" class="redis.clients.jedis.JedisShardInfo">
+	    <constructor-arg name="host" value="${redis.host2}"/>
+	    <constructor-arg name="port" value="${redis.port2}"/>
+	</bean>-->
+	<bean id="shardedJedisPool" class="redis.clients.jedis.ShardedJedisPool">
+		<constructor-arg name="poolConfig" ref="jedisPoolConfig"/>
+		<constructor-arg name="shards">
+			<list>
+				<ref bean="redis1"/>
+				<!--<ref bean="redis2"/>-->
+			</list>
+		</constructor-arg>
+	</bean>
+	<bean id="shardedJedisClient" class="com.blocks.cache.redis.impl.ShardedJedisClientImpl">
+		<constructor-arg name="sharedJedisPool" ref="shardedJedisPool"/>
+	</bean>
+	<!-- 2.分片式连接分布式集群redis配置 ]]-->
+
+	<!--3.分片式连接sentinel集群[[-->
+	<bean id="shardedJedisSentinelClient" class="com.blocks.cache.redis.impl.ShardedJedisSentinelClientImpl">
+		<constructor-arg name="poolConfig" ref="jedisPoolConfig"/>
+		<!-- 数据分片参数配置 -->
+		<constructor-arg name="masters">
+			<list>
+				<value>mymaster</value>
+				<value>master2</value>
+			</list>
+		</constructor-arg>
+		<!-- Sentinel服务器参数配置,host:port-->
+		<constructor-arg name="sentinels">
+			<set>
+				<value>172.16.9.70:26379</value>
+				<value>172.16.9.70:27379</value>
+			</set>
+		</constructor-arg>
+	</bean>
+	<!--3.分片式连接sentinel集群]]-->
+
+
 
 </beans>

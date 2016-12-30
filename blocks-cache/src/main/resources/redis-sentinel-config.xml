@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config> 
+  <!-- 基础参数配置 -->  
+  <timeOut>2000</timeOut>  
+  <!-- 连接池参数配置 -->  
+  <poolConfig> 
+    <maxIdle>50</maxIdle>  
+    <minIdle>10</minIdle> 
+  </poolConfig>  
+  <!-- Sentinel服务器参数配置,以下只是示例-->  
+  <sentinels> 
+    <sentinel> 
+      <ip>172.16.9.70</ip>  
+      <port>26379</port> 
+    </sentinel>  
+    <sentinel> 
+      <ip>172.16.9.70</ip>  
+      <port>27379</port> 
+    </sentinel>  
+  </sentinels>  
+  <!-- 数据分片参数配置 -->  
+  <shards> 
+    <shardName>mymaster</shardName> 
+    <shardName>master2</shardName> 
+  </shards>  
+</config>

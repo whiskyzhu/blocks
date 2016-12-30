@@ -1,10 +1,10 @@
 package com.blocks.cache.redis.impl;
 
-import com.blocks.cache.redis.JedisAction;
-import com.blocks.cache.redis.JedisClient;
+import com.blocks.cache.redis.ShardedJedisAction;
+import com.blocks.cache.redis.ShardedJedisClient;
 import com.blocks.cache.utils.SimpleUtils;
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisPool;
+import redis.clients.jedis.ShardedJedis;
+import redis.clients.jedis.ShardedJedisPool;
 import redis.clients.jedis.exceptions.JedisConnectionException;
 
 import java.util.HashMap;
@@ -13,33 +13,33 @@ import java.util.Set;
 import java.util.logging.Logger;
 
 /**
- * 连接单机redis
- * Created by lotus on 2016/12/26.
+ * 分片式连接redis集群
+ * Created by lotus on 2016/12/30.
  */
-//@Component("JedisClientImpl")
-public class JedisClientImpl implements JedisClient{
+public class ShardedJedisClientImpl implements ShardedJedisClient {
     private final Logger logger = Logger.getLogger(getClass().getName());
 
     /**
-     * 非分片连接池：连接单机
+     * 分片连接池：连接redis集群，通过一致性哈希算法决定把数据存到哪台redis上
+     * ShardedJedisPool是非分片式Sentinel连接池
      */
     //@Autowired
-    private JedisPool jedisPool;
+    private ShardedJedisPool sharedJedisPool;
 
-    public JedisClientImpl(){}
+    public ShardedJedisClientImpl(){}
 
-    public JedisClientImpl(JedisPool jedisPool) {this.jedisPool = jedisPool;}
+    public ShardedJedisClientImpl(ShardedJedisPool sharedJedisPool) {this.sharedJedisPool = sharedJedisPool;}
 
     public void destory() {
-        if (null != jedisPool){
-            jedisPool.destroy();
+        if (null != sharedJedisPool){
+            sharedJedisPool.destroy();
         }
     }
 
-    public <T> T execute(JedisAction<T> action) {
-        Jedis jedis = null;
+    public <T> T execute(ShardedJedisAction<T> action) {
+        ShardedJedis jedis = null;
         try{
-            jedis = jedisPool.getResource();
+            jedis = sharedJedisPool.getResource();
             return action.doAction(jedis);
         } catch (JedisConnectionException e) {
             if (null != e){
@@ -48,7 +48,7 @@ public class JedisClientImpl implements JedisClient{
         } finally {
             if (null != jedis){
                 try {
-                    jedisPool.returnResource(jedis);
+                    sharedJedisPool.returnResource(jedis);
                 } catch(Exception ex) {
                     logger.warning("Can not return resource." + ex.getMessage());
                 }
@@ -64,9 +64,9 @@ public class JedisClientImpl implements JedisClient{
      * @return
      */
     public String set(final String key, final String value) {
-        return this.execute(new JedisAction<String>() {
-            public String doAction(Jedis jedis) {
-                return jedis.set(key, value);
+        return this.execute(new ShardedJedisAction<String>() {
+            public String doAction(ShardedJedis shardedJedis) {
+                return shardedJedis.set(key, value);
             }
         });
     }
@@ -80,20 +80,20 @@ public class JedisClientImpl implements JedisClient{
      * @return
      */
     public String set(final String key, final String value, final int expire) {
-        return this.execute(new JedisAction<String>() {
-            public String doAction(Jedis jedis) {
+        return this.execute(new ShardedJedisAction<String>() {
+            public String doAction(ShardedJedis shardedJedis) {
                 /*String result = jedis.set(key, value);
                 jedis.expire(key, expire);
                 return result;*/
-                return jedis.setex(key, expire, value);
+                return shardedJedis.setex(key, expire, value);
             }
         });
     }
 
     public String get(final String key) {
-        return this.execute(new JedisAction<String>() {
-            public String doAction(Jedis jedis) {
-                return jedis.get(key);
+        return this.execute(new ShardedJedisAction<String>() {
+            public String doAction(ShardedJedis shardedJedis) {
+                return shardedJedis.get(key);
             }
         });
     }
@@ -106,17 +106,17 @@ public class JedisClientImpl implements JedisClient{
      * @return
      */
     public Long del(final String key) {
-        return this.execute(new JedisAction<Long>() {
-            public Long doAction(Jedis jedis) {
-                return jedis.del(key);
+        return this.execute(new ShardedJedisAction<Long>() {
+            public Long doAction(ShardedJedis shardedJedis) {
+                return shardedJedis.del(key);
             }
         });
     }
 
     public long del(final byte[] key) {
-        return this.execute(new JedisAction<Long>() {
-            public Long doAction(Jedis jedis) {
-                return jedis.del(key);
+        return this.execute(new ShardedJedisAction<Long>() {
+            public Long doAction(ShardedJedis shardedJedis) {
+                return shardedJedis.del(key);
             }
         });
     }
@@ -128,9 +128,9 @@ public class JedisClientImpl implements JedisClient{
      * @return
      */
     public long delObject(final String key) {
-        return this.execute(new JedisAction<Long>() {
-            public Long doAction(Jedis jedis) {
-                return jedis.del(key.getBytes());
+        return this.execute(new ShardedJedisAction<Long>() {
+            public Long doAction(ShardedJedis shardedJedis) {
+                return shardedJedis.del(key.getBytes());
             }
         });
     }
@@ -143,9 +143,9 @@ public class JedisClientImpl implements JedisClient{
      * @return
      */
     public String setObject(final String key, final Object value) {
-        return this.execute(new JedisAction<String>() {
-            public String doAction(Jedis jedis) {
-                return jedis.set(key.getBytes(), SimpleUtils.serialize(value));
+        return this.execute(new ShardedJedisAction<String>() {
+            public String doAction(ShardedJedis shardedJedis) {
+                return shardedJedis.set(key.getBytes(), SimpleUtils.serialize(value));
             }
         });
     }
@@ -159,20 +159,20 @@ public class JedisClientImpl implements JedisClient{
      * @return
      */
     public String setObject(final String key, final Object value, final int expire) {
-        return this.execute(new JedisAction<String>() {
-            public String doAction(Jedis jedis) {
+        return this.execute(new ShardedJedisAction<String>() {
+            public String doAction(ShardedJedis shardedJedis) {
                 /*String result = jedis.set(key.getBytes(), SimpleUtils.serialize(value));
                 jedis.expire(key, expire);
                 return result;*/
-                return jedis.setex(key.getBytes(), expire, SimpleUtils.serialize(value));
+                return shardedJedis.setex(key.getBytes(), expire, SimpleUtils.serialize(value));
             }
         });
     }
 
     public String set(final byte[] key, final Object value) {
-        return this.execute(new JedisAction<String>() {
-            public String doAction(Jedis jedis) {
-                return jedis.set(key, SimpleUtils.serialize(value));
+        return this.execute(new ShardedJedisAction<String>() {
+            public String doAction(ShardedJedis shardedJedis) {
+                return shardedJedis.set(key, SimpleUtils.serialize(value));
             }
         });
     }
@@ -187,9 +187,9 @@ public class JedisClientImpl implements JedisClient{
      * @return
      */
     public long hset(final String key, final String field, final String value) {
-        return this.execute(new JedisAction<Long>() {
-            public Long doAction(Jedis jedis) {
-                return jedis.hset(key, field, value);
+        return this.execute(new ShardedJedisAction<Long>() {
+            public Long doAction(ShardedJedis shardedJedis) {
+                return shardedJedis.hset(key, field, value);
             }
         });
     }
@@ -205,28 +205,28 @@ public class JedisClientImpl implements JedisClient{
      * @return
      */
     public long hset(final String key, final String field, final String value, final int expire) {
-        return this.execute(new JedisAction<Long>() {
-            public Long doAction(Jedis jedis) {
-                Long result = jedis.hset(key, field, value);
-                jedis.expire(key, expire);
+        return this.execute(new ShardedJedisAction<Long>() {
+            public Long doAction(ShardedJedis shardedJedis) {
+                Long result = shardedJedis.hset(key, field, value);
+                shardedJedis.expire(key, expire);
                 return result;
             }
         });
     }
 
     public long hsetObject(final String key, final String field, final Object value) {
-        return this.execute(new JedisAction<Long>() {
-            public Long doAction(Jedis jedis) {
-                return jedis.hset(key.getBytes(), field.getBytes(), SimpleUtils.serialize(value));
+        return this.execute(new ShardedJedisAction<Long>() {
+            public Long doAction(ShardedJedis shardedJedis) {
+                return shardedJedis.hset(key.getBytes(), field.getBytes(), SimpleUtils.serialize(value));
             }
         });
     }
 
     public long hsetObject(final String key, final String field, final Object value, final int expire) {
-        return this.execute(new JedisAction<Long>() {
-            public Long doAction(Jedis jedis) {
-                Long result = jedis.hset(key.getBytes(), field.getBytes(), SimpleUtils.serialize(value));
-                jedis.expire(key.getBytes(), expire);
+        return this.execute(new ShardedJedisAction<Long>() {
+            public Long doAction(ShardedJedis shardedJedis) {
+                Long result = shardedJedis.hset(key.getBytes(), field.getBytes(), SimpleUtils.serialize(value));
+                shardedJedis.expire(key.getBytes(), expire);
                 return result;
             }
         });
@@ -240,17 +240,17 @@ public class JedisClientImpl implements JedisClient{
      * @return
      */
     public String hget(final String key, final String field) {
-        return this.execute(new JedisAction<String>() {
-            public String doAction(Jedis jedis) {
-                return jedis.hget(key, field);
+        return this.execute(new ShardedJedisAction<String>() {
+            public String doAction(ShardedJedis shardedJedis) {
+                return shardedJedis.hget(key, field);
             }
         });
     }
 
     public Object hgetObject(final String key, final String field) {
-        return this.execute(new JedisAction<Object>() {
-            public Object doAction(Jedis jedis) {
-                return SimpleUtils.unserialize(jedis.hget(key.getBytes(), field.getBytes()));
+        return this.execute(new ShardedJedisAction<Object>() {
+            public Object doAction(ShardedJedis shardedJedis) {
+                return SimpleUtils.unserialize(shardedJedis.hget(key.getBytes(), field.getBytes()));
             }
         });
     }
@@ -262,17 +262,17 @@ public class JedisClientImpl implements JedisClient{
      * @return
      */
     public Map<String, String> hgetAll(final String key) {
-        return this.execute(new JedisAction<Map<String, String>>() {
-            public Map<String, String> doAction(Jedis jedis) {
-                return jedis.hgetAll(key);
+        return this.execute(new ShardedJedisAction<Map<String, String>>() {
+            public Map<String, String> doAction(ShardedJedis shardedJedis) {
+                return shardedJedis.hgetAll(key);
             }
         });
     }
 
     public Map<String, Object> hgetAllObject(final String key) {
-        return this.execute(new JedisAction<Map<String, Object>>() {
-            public Map<String, Object> doAction(Jedis jedis) {
-                Map<byte[], byte[]> byteMap = jedis.hgetAll(key.getBytes());
+        return this.execute(new ShardedJedisAction<Map<String, Object>>() {
+            public Map<String, Object> doAction(ShardedJedis shardedJedis) {
+                Map<byte[], byte[]> byteMap = shardedJedis.hgetAll(key.getBytes());
                 Map<String, Object> objMap = new HashMap<String, Object>();
                 for (Map.Entry<byte[], byte[]> entry : byteMap.entrySet()){
                     objMap.put(SimpleUtils.unserialize(entry.getKey()).toString(), SimpleUtils.unserialize(entry.getValue()));
@@ -290,9 +290,9 @@ public class JedisClientImpl implements JedisClient{
      * @return
      */
     public String hmset(final String key, final Map<String, String> hash) {
-        return this.execute(new JedisAction<String>() {
-            public String doAction(Jedis jedis) {
-                return jedis.hmset(key, hash);
+        return this.execute(new ShardedJedisAction<String>() {
+            public String doAction(ShardedJedis shardedJedis) {
+                return shardedJedis.hmset(key, hash);
             }
         });
     }
@@ -306,10 +306,10 @@ public class JedisClientImpl implements JedisClient{
      * @return
      */
     public String hmset(final String key, final Map<String, String> hash, final int expire) {
-        return this.execute(new JedisAction<String>() {
-            public String doAction(Jedis jedis) {
-                String result = jedis.hmset(key, hash);
-                jedis.expire(key, expire);
+        return this.execute(new ShardedJedisAction<String>() {
+            public String doAction(ShardedJedis shardedJedis) {
+                String result = shardedJedis.hmset(key, hash);
+                shardedJedis.expire(key, expire);
                 return result;
             }
         });
@@ -323,9 +323,9 @@ public class JedisClientImpl implements JedisClient{
      * @return
      */
     public long hdel(final String key, final String... field) {
-        return this.execute(new JedisAction<Long>() {
-            public Long doAction(Jedis jedis) {
-                return jedis.hdel(key, field);
+        return this.execute(new ShardedJedisAction<Long>() {
+            public Long doAction(ShardedJedis shardedJedis) {
+                return shardedJedis.hdel(key, field);
             }
         });
     }
@@ -340,9 +340,9 @@ public class JedisClientImpl implements JedisClient{
      * @return
      */
     public Long lpush(final String key, final Object value) {
-        return this.execute(new JedisAction<Long>() {
-            public Long doAction(Jedis jedis) {
-                return jedis.lpush(key.getBytes(), SimpleUtils.serialize(value));
+        return this.execute(new ShardedJedisAction<Long>() {
+            public Long doAction(ShardedJedis shardedJedis) {
+                return shardedJedis.lpush(key.getBytes(), SimpleUtils.serialize(value));
             }
         });
     }
@@ -357,9 +357,9 @@ public class JedisClientImpl implements JedisClient{
      * @return
      */
     public Long rpush(final String key, final Object value) {
-        return this.execute(new JedisAction<Long>() {
-            public Long doAction(Jedis jedis) {
-                return jedis.rpush(key.getBytes(), SimpleUtils.serialize(value));
+        return this.execute(new ShardedJedisAction<Long>() {
+            public Long doAction(ShardedJedis shardedJedis) {
+                return shardedJedis.rpush(key.getBytes(), SimpleUtils.serialize(value));
             }
         });
     }
@@ -371,9 +371,9 @@ public class JedisClientImpl implements JedisClient{
      * @return
      */
     public Long llen(final String key) {
-        return this.execute(new JedisAction<Long>() {
-            public Long doAction(Jedis jedis) {
-                return jedis.llen(key.getBytes());
+        return this.execute(new ShardedJedisAction<Long>() {
+            public Long doAction(ShardedJedis shardedJedis) {
+                return shardedJedis.llen(key.getBytes());
             }
         });
     }
@@ -385,9 +385,9 @@ public class JedisClientImpl implements JedisClient{
      * @return
      */
     public Object lpop(final String key) {
-        return this.execute(new JedisAction<Object>() {
-            public Object doAction(Jedis jedis) {
-                return SimpleUtils.unserialize(jedis.lpop(key.getBytes()));
+        return this.execute(new ShardedJedisAction<Object>() {
+            public Object doAction(ShardedJedis shardedJedis) {
+                return SimpleUtils.unserialize(shardedJedis.lpop(key.getBytes()));
             }
         });
     }
@@ -399,9 +399,9 @@ public class JedisClientImpl implements JedisClient{
      * @return
      */
     public Object rpop(final String key) {
-        return this.execute(new JedisAction<Object>() {
-            public Object doAction(Jedis jedis) {
-                return SimpleUtils.unserialize(jedis.rpop(key.getBytes()));
+        return this.execute(new ShardedJedisAction<Object>() {
+            public Object doAction(ShardedJedis shardedJedis) {
+                return SimpleUtils.unserialize(shardedJedis.rpop(key.getBytes()));
             }
         });
     }
@@ -415,9 +415,9 @@ public class JedisClientImpl implements JedisClient{
      * @return
      */
     public Long incr(final String key) {
-        return this.execute(new JedisAction<Long>() {
-            public Long doAction(Jedis jedis) {
-                return jedis.incr(key);
+        return this.execute(new ShardedJedisAction<Long>() {
+            public Long doAction(ShardedJedis shardedJedis) {
+                return shardedJedis.incr(key);
             }
         });
     }
@@ -430,10 +430,10 @@ public class JedisClientImpl implements JedisClient{
      * @return
      */
     public Long incr(final String key, final int expire) {
-        return this.execute(new JedisAction<Long>() {
-            public Long doAction(Jedis jedis) {
-                Long result = jedis.incr(key);
-                jedis.expire(key, expire);
+        return this.execute(new ShardedJedisAction<Long>() {
+            public Long doAction(ShardedJedis shardedJedis) {
+                Long result = shardedJedis.incr(key);
+                shardedJedis.expire(key, expire);
                 return result;
             }
         });
@@ -447,9 +447,9 @@ public class JedisClientImpl implements JedisClient{
      * @return
      */
     public Long incrBy(final String key, final long integer) {
-        return this.execute(new JedisAction<Long>() {
-            public Long doAction(Jedis jedis) {
-                return jedis.incrBy(key, integer);
+        return this.execute(new ShardedJedisAction<Long>() {
+            public Long doAction(ShardedJedis shardedJedis) {
+                return shardedJedis.incrBy(key, integer);
             }
         });
     }
@@ -463,9 +463,9 @@ public class JedisClientImpl implements JedisClient{
      * @return
      */
     public Long decr(final String key) {
-        return this.execute(new JedisAction<Long>() {
-            public Long doAction(Jedis jedis) {
-                return jedis.decr(key);
+        return this.execute(new ShardedJedisAction<Long>() {
+            public Long doAction(ShardedJedis shardedJedis) {
+                return shardedJedis.decr(key);
             }
         });
     }
@@ -478,10 +478,10 @@ public class JedisClientImpl implements JedisClient{
      * @return
      */
     public Long decr(final String key, final int expire) {
-        return this.execute(new JedisAction<Long>() {
-            public Long doAction(Jedis jedis) {
-                Long result = jedis.decr(key);
-                jedis.expire(key, expire);
+        return this.execute(new ShardedJedisAction<Long>() {
+            public Long doAction(ShardedJedis shardedJedis) {
+                Long result = shardedJedis.decr(key);
+                shardedJedis.expire(key, expire);
                 return result;
             }
         });
@@ -495,9 +495,9 @@ public class JedisClientImpl implements JedisClient{
      * @return
      */
     public Long decrBy(final String key, final long integer) {
-        return this.execute(new JedisAction<Long>() {
-            public Long doAction(Jedis jedis) {
-                return jedis.decrBy(key, integer);
+        return this.execute(new ShardedJedisAction<Long>() {
+            public Long doAction(ShardedJedis shardedJedis) {
+                return shardedJedis.decrBy(key, integer);
             }
         });
     }
@@ -512,9 +512,9 @@ public class JedisClientImpl implements JedisClient{
      * @return
      */
     public Long append(final String key, final String value) {
-        return this.execute(new JedisAction<Long>() {
-            public Long doAction(Jedis jedis) {
-                return jedis.append(key, value);
+        return this.execute(new ShardedJedisAction<Long>() {
+            public Long doAction(ShardedJedis shardedJedis) {
+                return shardedJedis.append(key, value);
             }
         });
     }
@@ -530,9 +530,9 @@ public class JedisClientImpl implements JedisClient{
      * @return
      */
     public Long hincrBy(final String key, final String field, final long value) {
-        return this.execute(new JedisAction<Long>() {
-            public Long doAction(Jedis jedis) {
-                return jedis.hincrBy(key, field, value);
+        return this.execute(new ShardedJedisAction<Long>() {
+            public Long doAction(ShardedJedis shardedJedis) {
+                return shardedJedis.hincrBy(key, field, value);
             }
         });
     }
@@ -545,9 +545,9 @@ public class JedisClientImpl implements JedisClient{
      * @return
      */
     public boolean exists(final String key) {
-        return this.execute(new JedisAction<Boolean>() {
-            public Boolean doAction(Jedis jedis) {
-                return jedis.exists(key);
+        return this.execute(new ShardedJedisAction<Boolean>() {
+            public Boolean doAction(ShardedJedis shardedJedis) {
+                return shardedJedis.exists(key);
             }
         });
     }
@@ -560,9 +560,9 @@ public class JedisClientImpl implements JedisClient{
      * @return
      */
     public Long expire(final String key, final int expire) {
-        return this.execute(new JedisAction<Long>() {
-            public Long doAction(Jedis jedis) {
-                return jedis.expire(key, expire);
+        return this.execute(new ShardedJedisAction<Long>() {
+            public Long doAction(ShardedJedis shardedJedis) {
+                return shardedJedis.expire(key, expire);
             }
         });
     }
@@ -575,9 +575,9 @@ public class JedisClientImpl implements JedisClient{
      * @return
      */
     public Long expireAt(final String key, final Long unixTimestamp) {
-        return this.execute(new JedisAction<Long>() {
-            public Long doAction(Jedis jedis) {
-                return jedis.expireAt(key, unixTimestamp);
+        return this.execute(new ShardedJedisAction<Long>() {
+            public Long doAction(ShardedJedis shardedJedis) {
+                return shardedJedis.expireAt(key, unixTimestamp);
             }
         });
     }
@@ -588,17 +588,20 @@ public class JedisClientImpl implements JedisClient{
      * @return 符合给定模式的 key 列表 (Array)
      */
     public Set<String> keys(final String key) {
-        return this.execute(new JedisAction<Set<String>>() {
-            public Set<String> doAction(Jedis jedis) {
-                return jedis.keys(key);
+        return this.execute(new ShardedJedisAction<Set<String>>() {
+            public Set<String> doAction(ShardedJedis shardedJedis) {
+                //ShardedJedis不存在方法keys,具体原因详见：https://github.com/xetorthio/jedis/issues/325
+                return shardedJedis.hkeys(key);
+                //return jedis.keys(key);
             }
         });
     }
 
     public Set<byte[]> bKeys(final String key) {
-        return this.execute(new JedisAction<Set<byte[]>>() {
-            public Set<byte[]> doAction(Jedis jedis) {
-                return jedis.keys(key.getBytes());
+        return this.execute(new ShardedJedisAction<Set<byte[]>>() {
+            public Set<byte[]> doAction(ShardedJedis shardedJedis) {
+                return shardedJedis.hkeys(key.getBytes());
+                //return jedis.keys(key.getBytes());
             }
         });
     }
@@ -611,24 +614,9 @@ public class JedisClientImpl implements JedisClient{
      * @return
      */
     public Long ttl(final String key) {
-        return this.execute(new JedisAction<Long>() {
-            public Long doAction(Jedis jedis) {
-                return jedis.ttl(key);
-            }
-        });
-    }
-
-    /**
-     * 修改 key 的名称
-     * 改名成功时提示 OK ，失败时候返回一个错误。
-     *
-     * @param key
-     * @return 改名成功时提示 OK ，失败时候返回一个错误。
-     */
-    public String rename(final String key, final String newKey) {
-        return this.execute(new JedisAction<String>() {
-            public String doAction(Jedis jedis) {
-                return jedis.rename(key, newKey);
+        return this.execute(new ShardedJedisAction<Long>() {
+            public Long doAction(ShardedJedis shardedJedis) {
+                return shardedJedis.ttl(key);
             }
         });
     }
@@ -647,9 +635,9 @@ public class JedisClientImpl implements JedisClient{
      * @return
      */
     public String type(final String key) {
-        return this.execute(new JedisAction<String>() {
-            public String doAction(Jedis jedis) {
-                return jedis.type(key);
+        return this.execute(new ShardedJedisAction<String>() {
+            public String doAction(ShardedJedis shardedJedis) {
+                return shardedJedis.type(key);
             }
         });
     }
@@ -663,9 +651,9 @@ public class JedisClientImpl implements JedisClient{
      * @return 当集合 key 不是集合类型时，返回一个错误。
      */
     public Long sadd(final String key, final String... members) {
-        return this.execute(new JedisAction<Long>() {
-            public Long doAction(Jedis jedis) {
-                return jedis.sadd(key, members);
+        return this.execute(new ShardedJedisAction<Long>() {
+            public Long doAction(ShardedJedis shardedJedis) {
+                return shardedJedis.sadd(key, members);
             }
         });
     }
@@ -678,9 +666,9 @@ public class JedisClientImpl implements JedisClient{
      * @return 被成功移除的元素的数量，不包括被忽略的元素
      */
     public Long srem(final String key, final String... members) {
-        return this.execute(new JedisAction<Long>() {
-            public Long doAction(Jedis jedis) {
-                return jedis.srem(key, members);
+        return this.execute(new ShardedJedisAction<Long>() {
+            public Long doAction(ShardedJedis shardedJedis) {
+                return shardedJedis.srem(key, members);
             }
         });
     }
@@ -693,9 +681,9 @@ public class JedisClientImpl implements JedisClient{
      * @return 如果成员元素是集合的成员，返回 1 。 如果成员元素不是集合的成员，或 key 不存在，返回 0 。
      */
     public Boolean sismember(final String key, final String member) {
-        return this.execute(new JedisAction<Boolean>() {
-            public Boolean doAction(Jedis jedis) {
-                return jedis.sismember(key, member);
+        return this.execute(new ShardedJedisAction<Boolean>() {
+            public Boolean doAction(ShardedJedis shardedJedis) {
+                return shardedJedis.sismember(key, member);
             }
         });
     }
@@ -708,9 +696,9 @@ public class JedisClientImpl implements JedisClient{
      * @return 集合中的所有成员
      */
     public Set<String> smembers(final String key) {
-        return this.execute(new JedisAction<Set<String>>() {
-            public Set<String> doAction(Jedis jedis) {
-                return jedis.smembers(key);
+        return this.execute(new ShardedJedisAction<Set<String>>() {
+            public Set<String> doAction(ShardedJedis shardedJedis) {
+                return shardedJedis.smembers(key);
             }
         });
     }
@@ -722,9 +710,9 @@ public class JedisClientImpl implements JedisClient{
      * @return 集合的数量。 当集合 key 不存在时，返回 0
      */
     public Long scard(final String key) {
-        return this.execute(new JedisAction<Long>() {
-            public Long doAction(Jedis jedis) {
-                return jedis.scard(key);
+        return this.execute(new ShardedJedisAction<Long>() {
+            public Long doAction(ShardedJedis shardedJedis) {
+                return shardedJedis.scard(key);
             }
         });
     }
