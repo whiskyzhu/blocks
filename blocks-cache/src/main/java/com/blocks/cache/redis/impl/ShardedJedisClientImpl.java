@@ -2,7 +2,9 @@ package com.blocks.cache.redis.impl;
 
 import com.blocks.cache.redis.ShardedJedisAction;
 import com.blocks.cache.redis.ShardedJedisClient;
+import com.blocks.cache.redis.pubsub.JedisMessageListener;
 import com.blocks.cache.utils.SimpleUtils;
+import redis.clients.jedis.Jedis;
 import redis.clients.jedis.ShardedJedis;
 import redis.clients.jedis.ShardedJedisPool;
 import redis.clients.jedis.exceptions.JedisConnectionException;
@@ -713,6 +715,63 @@ public class ShardedJedisClientImpl implements ShardedJedisClient {
         return this.execute(new ShardedJedisAction<Long>() {
             public Long doAction(ShardedJedis shardedJedis) {
                 return shardedJedis.scard(key);
+            }
+        });
+    }
+
+    /**
+     * 订阅给定的一个或多个频道的信息
+     *
+     * @param pubSubListener
+     * @param channels
+     */
+    public void subscrible(final JedisMessageListener pubSubListener, final String... channels) {
+        new Thread(new Thread(){
+            /**
+             * If this thread was constructed using a separate
+             * <code>Runnable</code> run object, then that
+             * <code>Runnable</code> object's <code>run</code> method is called;
+             * otherwise, this method does nothing and returns.
+             * <p/>
+             * Subclasses of <code>Thread</code> should override this method.
+             *
+             * @see #start()
+             * @see #stop()
+             * @see #Thread(ThreadGroup, Runnable, String)
+             */
+            @Override
+            public void run() {
+                //注：ShardedJedis没有发布和订阅功能，需要还原为Jedis，获取方式如下(完全可以重新配置一份JedisPool)：
+                //参考http://blog.csdn.net/javaloveiphone/article/details/53259853
+                ShardedJedis shardedJedis = sharedJedisPool.getResource();
+                Jedis[] jedises = new Jedis[]{};
+                jedises = shardedJedis.getAllShards().toArray(jedises);
+                Jedis jedis = jedises[0];
+
+                jedis.subscribe(pubSubListener, channels);
+                //subscribe是一个阻塞的方法，在取消订阅该频道前，会一直阻塞在这，只有当取消了订阅才会执行下面的other code
+                //other code
+            }
+        }).start();
+    }
+
+    /**
+     * 向频道发布消息
+     *
+     * @param channel
+     * @param message
+     * @return 接收到信息的订阅者数量
+     */
+    public Long publish(final String channel, final String message) {
+        return this.execute(new ShardedJedisAction<Long>() {
+            public Long doAction(ShardedJedis shardedJedis) {
+                //注：ShardedJedis没有发布和订阅功能，需要还原为Jedis，获取方式如下(完全可以重新配置一份JedisPool)：
+                //参考http://blog.csdn.net/javaloveiphone/article/details/53259853
+                Jedis[] jedises = new Jedis[]{};
+                jedises = shardedJedis.getAllShards().toArray(jedises);
+                Jedis jedis = jedises[0];
+
+                return jedis.publish(channel, message);
             }
         });
     }

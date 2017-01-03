@@ -1,5 +1,7 @@
 package com.blocks.cache.redis;
 
+import com.blocks.cache.redis.pubsub.JedisMessageListener;
+
 import java.util.Map;
 import java.util.Set;
 
@@ -352,4 +354,18 @@ public interface BaseJedisClient {
      */
     public Long scard(final String key);
 
+    /**
+     * 订阅给定的一个或多个频道的信息
+     * @param pubSubListener
+     * @param channels
+     */
+    public void subscrible(final JedisMessageListener pubSubListener, final String... channels);
+
+    /**
+     *向频道发布消息
+     * @param channel
+     * @param message
+     * @return 接收到信息的订阅者数量
+     */
+    public Long publish(final String channel, final String message);
 }

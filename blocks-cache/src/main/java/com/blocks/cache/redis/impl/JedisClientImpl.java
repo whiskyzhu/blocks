@@ -2,6 +2,7 @@ package com.blocks.cache.redis.impl;
 
 import com.blocks.cache.redis.JedisAction;
 import com.blocks.cache.redis.JedisClient;
+import com.blocks.cache.redis.pubsub.JedisMessageListener;
 import com.blocks.cache.utils.SimpleUtils;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
@@ -728,4 +729,52 @@ public class JedisClientImpl implements JedisClient{
             }
         });
     }
+
+    /**
+     * 订阅频道
+     *
+     * @param pubSubListener
+     * @param channels
+     */
+    public void subscrible(final JedisMessageListener pubSubListener, final String... channels) {
+        new Thread(new Thread(){
+            /**
+             * If this thread was constructed using a separate
+             *
+             * <code>Runnable</code> run object, then that
+             * <code>Runnable</code> object's <code>run</code> method is called;
+             * otherwise, this method does nothing and returns.
+             * <p/>
+             * Subclasses of <code>Thread</code> should override this method.
+             *
+             * @see #start()
+             * @see #stop()
+             * @see #Thread(ThreadGroup, Runnable, String)
+             */
+            @Override
+            public void run() {
+                Jedis jedis = jedisPool.getResource();
+                jedis.subscribe(pubSubListener, channels);
+                //subscribe是一个阻塞的方法，在取消订阅该频道前，会一直阻塞在这，只有当取消了订阅才会执行下面的other code
+                //other code
+            }
+        }).start();
+    }
+
+    /**
+     * 向频道发布消息
+     *
+     * @param channel
+     * @param message
+     * @return 接收到信息的订阅者数量
+     */
+    public Long publish(final String channel, final String message) {
+        return this.execute(new JedisAction<Long>() {
+            public Long doAction(Jedis jedis) {
+                return jedis.publish(channel, message);
+            }
+        });
+    }
+
+
 }
