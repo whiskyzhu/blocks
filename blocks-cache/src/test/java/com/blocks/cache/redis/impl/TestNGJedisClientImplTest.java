@@ -2,6 +2,7 @@ package com.blocks.cache.redis.impl;
 
 import com.blocks.TestNGBaseTest;
 import com.blocks.cache.redis.JedisClient;
+import com.blocks.cache.redis.pubsub.JedisMessageListener;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.testng.Assert;
 import org.testng.annotations.*;
@@ -113,6 +114,37 @@ public class TestNGJedisClientImplTest extends TestNGBaseTest {
         }
 
         JedisClientImpl.del("hsh1");
+    }
 
+    @Test
+    public void testSubscrible(){
+        String channel = "pubsub:queue";
+        JedisClientImpl.subscrible(new JedisMessageListener() {
+            /**
+             * 监听到订阅频道接受到消息时的回调 (onMessage )
+             *
+             * @param channel
+             * @param message
+             */
+            @Override
+            public void onMessage(String channel, String message) {
+                super.onMessage(channel, message);
+                System.out.println("channel " + channel +" received message:" + message );
+                Assert.assertEquals(message, "hello!");
+            }
+
+            /**
+             * 订阅频道时的回调( onSubscribe )
+             *
+             * @param channel
+             * @param subscribedChannels
+             */
+            @Override
+            public void onSubscribe(String channel, int subscribedChannels) {
+                System.out.println("subscrible channel" + channel +",subscribedChannels:"+subscribedChannels);
+            }
+        }, channel);
+
+        JedisClientImpl.publish(channel, "hello!");
     }
 }

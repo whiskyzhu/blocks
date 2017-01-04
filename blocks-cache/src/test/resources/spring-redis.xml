@@ -59,23 +59,23 @@
 	<!-- 2.分片式连接分布式集群redis配置 ]]-->
 
 	<!--3.分片式连接sentinel集群[[-->
-	<bean id="shardedJedisSentinelClient" class="com.blocks.cache.redis.impl.ShardedJedisSentinelClientImpl">
+	<!--<bean id="shardedJedisSentinelClient" class="com.blocks.cache.redis.impl.ShardedJedisSentinelClientImpl">
 		<constructor-arg name="poolConfig" ref="jedisPoolConfig"/>
-		<!-- 数据分片参数配置 -->
+		&lt;!&ndash; 数据分片参数配置 &ndash;&gt;
 		<constructor-arg name="masters">
 			<list>
 				<value>mymaster</value>
 				<value>master2</value>
 			</list>
 		</constructor-arg>
-		<!-- Sentinel服务器参数配置,host:port-->
+		&lt;!&ndash; Sentinel服务器参数配置,host:port&ndash;&gt;
 		<constructor-arg name="sentinels">
 			<set>
 				<value>172.16.9.70:26379</value>
 				<value>172.16.9.70:27379</value>
 			</set>
 		</constructor-arg>
-	</bean>
+	</bean>-->
 	<!--3.分片式连接sentinel集群]]-->
 
 
