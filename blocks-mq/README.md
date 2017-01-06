@@ -17,6 +17,9 @@ http://www.iteye.com/magazines/107
 ## RocketMQ
 RocketMQ的前身是Metaq，当 Metaq 3.0发布时，产品名称改为 RocketMQ。MetaQ2.x版本由于依赖了alibaba公司内部其他系统，对于公司外部用户使用不够友好，推荐使用3.0版本。
 
+### 订阅
+RocketMQ消息订阅有两种模式，一种是Push模式，即MQServer主动向消费端推送；另外一种是Pull模式，即消费端在需要时，主动到MQServer拉取。但在具体实现时，Push和Pull模式都是采用消费端主动拉取的方式。
+
 项目地址： https://github.com/alibaba/RocketMQ
 
 ## rabbitMQ
