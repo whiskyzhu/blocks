@@ -22,10 +22,11 @@
         <module>blocks-web</module>
         <module>blocks-pay</module>
         <module>blocks-framework</module>
+        <module>blocks-mq</module>
         <module>blocks-data</module>
         <module>blocks-utils</module>
         <module>blocks-cache</module>
-        <module>blocks-cache</module>
+
     </modules>
 
     <dependencyManagement>
